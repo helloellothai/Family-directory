@@ -557,7 +557,27 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://ydsgjlsbbwsxzjewktbk.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlkc2dqbHNiYndzeHpqZXdrdGJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQwMTc1OTEsImV4cCI6MjA2OTU5MzU5MX0.WfvHuhKdieJbLocKbv2oosBKzKl1dsZu50mA9OUHRtA';
+        
+        // Initialize Supabase
+        let supabase;
+        window.addEventListener('load', function() {
+            try {
+                if (window.supabase && window.supabase.createClient) {
+                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    console.log('✅ Supabase connected successfully');
+                } else {
+                    console.error('❌ Supabase library not loaded');
+                }
+            } catch (error) {
+                console.error('❌ Failed to initialize Supabase:', error);
+            }
+        });
+
         // Global variables
         let familyMembers = [];
         let editingId = null;
@@ -591,17 +611,49 @@
                 return;
             }
 
-            // For now, just simulate creating a directory
-            const inviteCode = familyName.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8) + 
-                             Math.floor(Math.random() * 1000);
+            if (!supabase) {
+                alert('Database connection not available. Please refresh the page.');
+                return;
+            }
 
-            // Simulate joining the directory
-            await joinDirectoryById('temp-id', familyName + ' Directory', inviteCode);
-            
-            // Show the invite code in a more visible way
-            setTimeout(() => {
-                showInviteCode();
-            }, 500);
+            try {
+                // Generate unique invite code
+                const inviteCode = familyName.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8) + 
+                                 Math.floor(Math.random() * 1000);
+
+                // Use direct fetch to avoid cloning issues
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/family_directories`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        name: familyName + ' Directory',
+                        invite_code: inviteCode
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Join the directory we just created
+                await joinDirectoryById(data[0].id, data[0].name, data[0].invite_code);
+                
+                // Show the invite code in a more visible way
+                setTimeout(() => {
+                    showInviteCode();
+                }, 500);
+
+            } catch (error) {
+                console.error('Error creating directory:', error);
+                alert('Error creating directory: ' + error.message);
+            }
         }
 
         async function joinDirectory() {
@@ -611,9 +663,38 @@
                 return;
             }
 
-            // For now, just simulate joining
-            await joinDirectoryById('temp-id', 'Family Directory', inviteCode);
-            alert('✅ Successfully joined family directory!');
+            if (!supabase) {
+                alert('Database connection not available. Please refresh the page.');
+                return;
+            }
+
+            try {
+                // Use direct fetch
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/family_directories?invite_code=eq.${inviteCode}&select=*`, {
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (!data || data.length === 0) {
+                    alert('Invalid invite code. Please check and try again.');
+                    return;
+                }
+
+                await joinDirectoryById(data[0].id, data[0].name, data[0].invite_code);
+                alert('✅ Successfully joined family directory!');
+
+            } catch (error) {
+                console.error('Error joining directory:', error);
+                alert('Error joining directory. Please try again.');
+            }
         }
 
         async function joinDirectoryById(directoryId, directoryName, inviteCode) {
@@ -627,9 +708,60 @@
             document.getElementById('startup-screen').style.display = 'none';
             document.getElementById('main-app').style.display = 'block';
 
-            // Load family data
+            // Load family data from database
+            await loadFamilyData();
             updateDropdowns();
             updateAllViews();
+
+            // Set up real-time subscriptions
+            setupRealtimeSubscription();
+        }
+
+        // Load family data from Supabase
+        async function loadFamilyData() {
+            if (!currentDirectoryId || !supabase) return;
+
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/family_members?directory_id=eq.${currentDirectoryId}&select=*`, {
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                familyMembers = await response.json() || [];
+                console.log(`✅ Loaded ${familyMembers.length} family members`);
+            } catch (error) {
+                console.error('Error loading family data:', error);
+                familyMembers = [];
+            }
+        }
+
+        // Set up real-time subscription
+        function setupRealtimeSubscription() {
+            if (!supabase || !currentDirectoryId) return;
+            
+            supabase
+                .channel('family_members_changes')
+                .on('postgres_changes', 
+                    { 
+                        event: '*', 
+                        schema: 'public', 
+                        table: 'family_members',
+                        filter: `directory_id=eq.${currentDirectoryId}`
+                    }, 
+                    async (payload) => {
+                        console.log('🔄 Real-time update received:', payload);
+                        await loadFamilyData();
+                        updateDropdowns();
+                        updateAllViews();
+                    }
+                )
+                .subscribe();
         }
 
         function leaveDirectory() {
