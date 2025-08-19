@@ -460,18 +460,19 @@
                             </div>
                             <div class="form-group">
                                 <label>🎂 Birthday * (Required)</label>
-                                <input type="date" id="birthday" required style="border-color: #f44336;">
+                                <input type="date" id="birthday" required style="border-color: #f44336;" 
+                                       pattern="\d{4}-\d{2}-\d{2}" placeholder="YYYY-MM-DD">
                             </div>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="optional">💍 Anniversary (if married)</label>
-                                <input type="date" id="anniversary">
+                                <input type="date" id="anniversary" pattern="\d{4}-\d{2}-\d{2}" placeholder="YYYY-MM-DD">
                             </div>
                             <div class="form-group">
                                 <label class="optional">⚰️ Date of Death (if deceased)</label>
-                                <input type="date" id="dateOfDeath">
+                                <input type="date" id="dateOfDeath" pattern="\d{4}-\d{2}-\d{2}" placeholder="YYYY-MM-DD">
                             </div>
                         </div>
 
@@ -605,7 +606,10 @@
         }
 
         async function createDirectory() {
+            console.log('🚀 createDirectory called');
             const familyName = document.getElementById('new-family-name').value.trim();
+            console.log('📝 Family name:', familyName);
+            
             if (!familyName) {
                 alert('Please enter a family name');
                 return;
@@ -620,27 +624,32 @@
                 // Generate unique invite code
                 const inviteCode = familyName.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8) + 
                                  Math.floor(Math.random() * 1000);
+                
+                console.log('🔑 Generated invite code:', inviteCode);
 
-                // Use direct fetch to avoid cloning issues
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/family_directories`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=representation'
-                    },
-                    body: JSON.stringify({
+                // Use Supabase client instead of fetch
+                console.log('📤 Creating directory with Supabase client...');
+                const { data, error } = await supabase
+                    .from('family_directories')
+                    .insert([{
                         name: familyName + ' Directory',
                         invite_code: inviteCode
-                    })
-                });
+                    }])
+                    .select();
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                console.log('📥 Supabase response data:', data);
+                console.log('📥 Supabase response error:', error);
+
+                if (error) {
+                    console.error('❌ Supabase error details:', error);
+                    throw new Error(`Database error: ${error.message}`);
                 }
 
-                const data = await response.json();
+                if (!data || data.length === 0) {
+                    throw new Error('No data returned from database');
+                }
+
+                console.log('✅ Directory created:', data[0]);
                 
                 // Join the directory we just created
                 await joinDirectoryById(data[0].id, data[0].name, data[0].invite_code);
@@ -651,7 +660,8 @@
                 }, 500);
 
             } catch (error) {
-                console.error('Error creating directory:', error);
+                console.error('❌ Full error object:', error);
+                console.error('❌ Error message:', error.message);
                 alert('Error creating directory: ' + error.message);
             }
         }
@@ -669,26 +679,24 @@
             }
 
             try {
-                // Use direct fetch
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/family_directories?invite_code=eq.${inviteCode}&select=*`, {
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
+                console.log('🔍 Looking for directory with code:', inviteCode);
                 
-                if (!data || data.length === 0) {
+                // Use Supabase client instead of fetch
+                const { data, error } = await supabase
+                    .from('family_directories')
+                    .select('*')
+                    .eq('invite_code', inviteCode)
+                    .single();
+
+                console.log('📥 Directory search result:', data);
+                console.log('📥 Directory search error:', error);
+
+                if (error || !data) {
                     alert('Invalid invite code. Please check and try again.');
                     return;
                 }
 
-                await joinDirectoryById(data[0].id, data[0].name, data[0].invite_code);
+                await joinDirectoryById(data.id, data.name, data.invite_code);
                 alert('✅ Successfully joined family directory!');
 
             } catch (error) {
@@ -719,24 +727,30 @@
 
         // Load family data from Supabase
         async function loadFamilyData() {
-            if (!currentDirectoryId || !supabase) return;
+            if (!currentDirectoryId || !supabase) {
+                console.log('❌ Cannot load data - missing directory ID or Supabase connection');
+                return;
+            }
 
             try {
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/family_members?directory_id=eq.${currentDirectoryId}&select=*`, {
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                    }
-                });
+                console.log(`🔍 Loading data for directory: ${currentDirectoryId}`);
+                
+                // Use Supabase client instead of fetch
+                const { data, error } = await supabase
+                    .from('family_members')
+                    .select('*')
+                    .eq('directory_id', currentDirectoryId);
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                if (error) {
+                    console.error('❌ Error loading family data:', error);
+                    familyMembers = [];
+                    return;
                 }
 
-                familyMembers = await response.json() || [];
-                console.log(`✅ Loaded ${familyMembers.length} family members`);
+                familyMembers = data || [];
+                console.log(`✅ Loaded ${familyMembers.length} family members:`, familyMembers);
             } catch (error) {
-                console.error('Error loading family data:', error);
+                console.error('❌ Error loading family data:', error);
                 familyMembers = [];
             }
         }
