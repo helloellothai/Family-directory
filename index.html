@@ -461,21 +461,21 @@
                             <div class="form-group">
                                 <label>🎂 Birthday * (Required)</label>
                                 <input type="text" id="birthday" required style="border-color: #f44336;" 
-                                       placeholder="YYYY-MM-DD (e.g., 1965-03-15)" 
-                                       pattern="\d{4}-\d{2}-\d{2}">
+                                       placeholder="MM-DD-YYYY (e.g., 03-15-1965)" 
+                                       maxlength="10">
                             </div>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="optional">💍 Anniversary (if married)</label>
-                                <input type="text" id="anniversary" placeholder="YYYY-MM-DD (e.g., 1990-06-12)" 
-                                       pattern="\d{4}-\d{2}-\d{2}">
+                                <input type="text" id="anniversary" placeholder="MM-DD-YYYY (e.g., 06-12-1990)" 
+                                       maxlength="10">
                             </div>
                             <div class="form-group">
                                 <label class="optional">⚰️ Date of Death (if deceased)</label>
-                                <input type="text" id="dateOfDeath" placeholder="YYYY-MM-DD (e.g., 2020-12-25)" 
-                                       pattern="\d{4}-\d{2}-\d{2}">
+                                <input type="text" id="dateOfDeath" placeholder="MM-DD-YYYY (e.g., 12-25-2020)" 
+                                       maxlength="10">
                             </div>
                         </div>
 
@@ -1148,9 +1148,9 @@
             document.getElementById('maidenName').value = member.maiden_name || '';
             document.getElementById('parentId').value = member.parent_id || '';
             document.getElementById('spouseId').value = member.spouse_id || '';
-            document.getElementById('birthday').value = member.birthday || '';
-            document.getElementById('anniversary').value = member.anniversary || '';
-            document.getElementById('dateOfDeath').value = member.date_of_death || '';
+            document.getElementById('birthday').value = convertDateForDisplay(member.birthday) || '';
+            document.getElementById('anniversary').value = convertDateForDisplay(member.anniversary) || '';
+            document.getElementById('dateOfDeath').value = convertDateForDisplay(member.date_of_death) || '';
             document.getElementById('phone').value = member.phone || '';
             document.getElementById('email').value = member.email || '';
             document.getElementById('instagram').value = member.instagram || '';
@@ -1706,12 +1706,35 @@
             list.innerHTML = html;
         }
 
-        // Auto-format phone as user types
+        // Auto-format dates and phone as user types
         document.addEventListener('DOMContentLoaded', function() {
             const phoneInput = document.getElementById('phone');
             if (phoneInput) {
                 phoneInput.addEventListener('input', function(e) {
                     e.target.value = formatPhoneNumber(e.target.value);
+                });
+            }
+
+            // Add date formatting to date inputs
+            const birthdayInput = document.getElementById('birthday');
+            const anniversaryInput = document.getElementById('anniversary');
+            const deathDateInput = document.getElementById('dateOfDeath');
+
+            if (birthdayInput) {
+                birthdayInput.addEventListener('input', function(e) {
+                    formatDateInput(e.target);
+                });
+            }
+
+            if (anniversaryInput) {
+                anniversaryInput.addEventListener('input', function(e) {
+                    formatDateInput(e.target);
+                });
+            }
+
+            if (deathDateInput) {
+                deathDateInput.addEventListener('input', function(e) {
+                    formatDateInput(e.target);
                 });
             }
         });
