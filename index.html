@@ -1513,8 +1513,8 @@
                 orderedFamilyList.push(person);
                 processedIds.add(person.id);
 
-                // Add their partner chain
-                addPartnerChain(person, orderedFamilyList, processedIds);
+                // Add their current partner (spouse or significant other)
+                addCurrentPartner(person, orderedFamilyList, processedIds);
 
                 // Add all their descendants
                 addDescendants(person.id, orderedFamilyList, processedIds);
@@ -1542,29 +1542,55 @@
                 orderedFamilyList.push(person);
                 processedIds.add(person.id);
 
-                addPartnerChain(person, orderedFamilyList, processedIds);
+                addCurrentPartner(person, orderedFamilyList, processedIds);
                 addDescendants(person.id, orderedFamilyList, processedIds);
             });
 
-            // Step 3: Add any remaining people
+            // Step 3: Add any remaining people as couples
             const remaining = familyMembers.filter(member => !processedIds.has(member.id));
             remaining.forEach(member => {
+                if (processedIds.has(member.id)) return;
+                
                 orderedFamilyList.push(member);
+                processedIds.add(member.id);
+                
+                addCurrentPartner(member, orderedFamilyList, processedIds);
             });
 
             return orderedFamilyList;
         }
 
-        // Helper function to add partner chain
-        function addPartnerChain(person, orderedFamilyList, processedIds) {
+        // Helper function to add current partner (handles remarriage by marriage date)
+        function addCurrentPartner(person, orderedFamilyList, processedIds) {
             const spouse = findSpouse(person);
             const significantOther = findSignificantOther(person);
             
+            // If person has both a spouse and significant other, prioritize by relationship type and dates
+            if (spouse && significantOther) {
+                // If spouse has anniversary date, use that for ordering
+                if (person.anniversary) {
+                    if (!processedIds.has(spouse.id)) {
+                        orderedFamilyList.push(spouse);
+                        processedIds.add(spouse.id);
+                    }
+                } else {
+                    // No anniversary date, add spouse first by default
+                    if (!processedIds.has(spouse.id)) {
+                        orderedFamilyList.push(spouse);
+                        processedIds.add(spouse.id);
+                    }
+                }
+                return;
+            }
+            
+            // Add spouse if exists
             if (spouse && !processedIds.has(spouse.id)) {
                 orderedFamilyList.push(spouse);
                 processedIds.add(spouse.id);
+                return;
             }
             
+            // Add significant other if no spouse
             if (significantOther && !processedIds.has(significantOther.id)) {
                 orderedFamilyList.push(significantOther);
                 processedIds.add(significantOther.id);
