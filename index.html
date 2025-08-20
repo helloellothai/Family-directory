@@ -986,8 +986,24 @@
             
             const potentialParents = familyMembers.filter(member => {
                 if (member.id === editingId) return false;
+                
+                // If no birthday, allow them (could be older generation)
                 if (!member.birthday) return true;
-                const age = calculateAge(member.birthday);
+                
+                // Calculate age at death if deceased, otherwise current age
+                let age;
+                if (member.date_of_death) {
+                    const birthDate = new Date(member.birthday);
+                    const deathDate = new Date(member.date_of_death);
+                    age = deathDate.getFullYear() - birthDate.getFullYear();
+                    const monthDiff = deathDate.getMonth() - birthDate.getMonth();
+                    if (monthDiff < 0 || (monthDiff === 0 && deathDate.getDate() < birthDate.getDate())) {
+                        age--;
+                    }
+                } else {
+                    age = calculateAge(member.birthday);
+                }
+                
                 return age >= 15;
             });
             
