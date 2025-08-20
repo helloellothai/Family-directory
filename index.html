@@ -409,7 +409,8 @@ window.exportToWord = exportToWord;
                 <button class="tab" onclick="showTab('birthday-calendar')">🎂 Birthday Calendar</button>
                 <button class="tab" onclick="showTab('anniversary-calendar')">💍 Anniversary Calendar</button>
                 <button class="tab" onclick="showTab('addresses')">🏠 Addresses</button>
-                <button class="tab" onclick="showTab('health')">🏥 Health Information</button>
+                <button class="tab" onclick="showTab('health')">🏥 Health Notes</button>
+                <button class="tab" onclick="showTab('notes')">📝 Notes</button>
                 <button class="tab" onclick="showTab('phone-list')">📞 Phone List</button>
                 <button class="tab" onclick="exportToWord()">📄 Export Word Doc</button>
             </div>
@@ -485,14 +486,74 @@ window.exportToWord = exportToWord;
                         </div>
 
                         <div class="form-row">
+                            <div class="form-group full-width">
+                                <label class="optional">📱 Phone Numbers</label>
+                                <textarea id="phone" placeholder="555-123-4567, 555-987-6543, WhatsApp: +1-555-111-2222" style="height: 50px; resize: vertical;"></textarea>
+                                <small style="color: #666; font-size: 12px;">Separate multiple numbers with commas. Include labels like "Cell:", "Work:", "WhatsApp:"</small>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
                             <div class="form-group">
-                                <label class="optional">📱 Phone Number</label>
-                                <input type="tel" id="phone" placeholder="555-123-4567">
+                                <label class="optional">✉️ Email Addresses</label>
+                                <input type="email" id="email" placeholder="john@email.com, work@company.com">
+                                <small style="color: #666; font-size: 12px;">Separate multiple emails with commas</small>
                             </div>
                             <div class="form-group">
-                                <label class="optional">✉️ Email</label>
-                                <input type="email" id="email">
+                                <label class="optional">📞 Preferred Contact Method</label>
+                                <select id="preferredContact">
+                                    <option value="">Select preferred method</option>
+                                    <option value="phone">Phone Call</option>
+                                    <option value="text">Text/SMS</option>
+                                    <option value="email">Email</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                    <option value="video">Video Call</option>
+                                    <option value="letter">Letter/Mail</option>
+                                </select>
                             </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="optional">🌍 Country/Region</label>
+                                <input type="text" id="country" placeholder="United States, Italy, etc.">
+                            </div>
+                            <div class="form-group">
+                                <label class="optional">🕐 Time Zone</label>
+                                <input type="text" id="timezone" placeholder="EST, GMT+1, PST, etc.">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="optional">📞 Preferred Contact Method</label>
+                                <select id="preferredContact">
+                                    <option value="">Select preferred method</option>
+                                    <option value="phone">Phone Call</option>
+                                    <option value="text">Text/SMS</option>
+                                    <option value="email">Email</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                    <option value="video">Video Call</option>
+                                    <option value="letter">Letter/Mail</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="optional">🏠 Address</label>
+                            <textarea id="address"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="optional">🏥 Health Notes - Anything you think sharing would be useful information for others</label>
+                            <textarea id="healthInfo"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="optional">📝 Notes - Additional information for family reference</label>
+                            <textarea id="notes"></textarea>
                         </div>
 
                         <div class="form-row">
@@ -531,10 +592,18 @@ window.exportToWord = exportToWord;
 
                 <!-- Health Information Tab -->
                 <div id="health-tab" class="tab-content" style="display: none;">
-                    <h2>🏥 Health Information</h2>
-                    <button class="big-btn" onclick="exportHealthInfo()" style="margin-bottom: 20px;">📄 Export Health Information</button>
+                    <h2>🏥 Health Notes</h2>
+                    <button class="big-btn" onclick="exportHealthInfo()" style="margin-bottom: 20px;">📄 Export Health Notes</button>
                     <br>
                     <div id="health-list"></div>
+                </div>
+
+                <!-- Notes Tab -->
+                <div id="notes-tab" class="tab-content" style="display: none;">
+                    <h2>📝 Notes</h2>
+                    <button class="big-btn" onclick="exportNotes()" style="margin-bottom: 20px;">📄 Export Notes</button>
+                    <br>
+                    <div id="notes-list"></div>
                 </div>
 
                 <!-- Birthday Calendar Tab -->
@@ -861,7 +930,11 @@ window.exportToWord = exportToWord;
                     email: member.email,
                     instagram: member.instagram,
                     address: member.address,
-                    health_info: member.health_info
+                    health_info: member.health_info,
+                    country: member.country,
+                    timezone: member.timezone,
+                    preferred_contact: member.preferred_contact,
+                    notes: member.notes
                 }));
                 
                 console.log('Loaded family members:', familyMembers.length);
@@ -893,14 +966,19 @@ window.exportToWord = exportToWord;
             return familyMembers.find(member => member.id == person.spouse_id);
         }
 
-        // Format phone number with dashes
+        // Format phone number with dashes (but preserve commas for multiple numbers)
         function formatPhoneNumber(phone) {
             if (!phone) return '';
-            const digits = phone.replace(/\D/g, '');
-            if (digits.length === 10) {
-                return digits.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
-            }
-            return phone;
+            
+            // Split by commas, format each number, then rejoin
+            return phone.split(',').map(num => {
+                const trimmed = num.trim();
+                const digits = trimmed.replace(/\D/g, '');
+                if (digits.length === 10) {
+                    return trimmed.replace(/\d{10}/, digits.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3'));
+                }
+                return trimmed;
+            }).join(', ');
         }
 
         // Auto-format dates as user types
@@ -1117,7 +1195,8 @@ window.exportToWord = exportToWord;
                 'birthday-calendar': 'Birthday Calendar',
                 'anniversary-calendar': 'Anniversary Calendar',
                 'addresses': 'Addresses',
-                'health': 'Health Information',
+                'health': 'Health Notes',
+                'notes': 'Notes',
                 'phone-list': 'Phone List'
             };
             return tabNames[tabName] || tabName;
@@ -1143,6 +1222,10 @@ window.exportToWord = exportToWord;
             document.getElementById('instagram').value = '';
             document.getElementById('address').value = '';
             document.getElementById('healthInfo').value = '';
+            document.getElementById('country').value = '';
+            document.getElementById('timezone').value = '';
+            document.getElementById('preferredContact').value = '';
+            document.getElementById('notes').value = '';
             
             editingId = null;
             document.getElementById('form-title').textContent = '➕ Add New Family Member';
@@ -1199,11 +1282,15 @@ window.exportToWord = exportToWord;
                 birthday: birthday,
                 anniversary: anniversaryDB,
                 date_of_death: dateOfDeathDB,
-                phone: formatPhoneNumber(document.getElementById('phone').value.trim()) || null,
+                phone: document.getElementById('phone').value.trim() || null,
                 email: document.getElementById('email').value.trim() || null,
                 instagram: document.getElementById('instagram').value.trim() || null,
                 address: document.getElementById('address').value.trim() || null,
-                health_info: document.getElementById('healthInfo').value.trim() || null
+                health_info: document.getElementById('healthInfo').value.trim() || null,
+                country: document.getElementById('country').value.trim() || null,
+                timezone: document.getElementById('timezone').value.trim() || null,
+                preferred_contact: document.getElementById('preferredContact').value || null,
+                notes: document.getElementById('notes').value.trim() || null
             };
 
             if (editingId) {
@@ -1216,15 +1303,20 @@ window.exportToWord = exportToWord;
         // Add member to Supabase
         async function addMemberToSupabase(memberData) {
             try {
+                console.log('Attempting to add member with data:', JSON.stringify(memberData, null, 2));
+                
                 const { data, error } = await supabase
                     .from('family_members')
                     .insert([memberData])
                     .select()
                     .single();
 
+                console.log('Insert response - data:', JSON.stringify(data, null, 2));
+                console.log('Insert response - error:', JSON.stringify(error, null, 2));
+
                 if (error) {
-                    console.error('Error adding member:', error);
-                    alert('Error adding family member. Please try again.');
+                    console.error('Detailed error:', error.message, error.details, error.hint, error.code);
+                    alert(`Error adding family member: ${error.message}`);
                     isSubmitting = false;
                     return;
                 }
@@ -1234,12 +1326,12 @@ window.exportToWord = exportToWord;
                     await syncSpouseData(data.id, memberData.spouse_id, memberData.anniversary);
                 }
 
-                alert('✅ Family member added successfully!');
+                alert('Family member added successfully!');
                 await refreshData();
                 clearForm();
             } catch (err) {
-                console.error('Error:', err);
-                alert('Error adding family member. Please try again.');
+                console.error('Catch block error:', err);
+                alert(`Error adding family member: ${err.message}`);
             }
             isSubmitting = false;
         }
@@ -1339,6 +1431,10 @@ window.exportToWord = exportToWord;
             document.getElementById('instagram').value = member.instagram || '';
             document.getElementById('address').value = member.address || '';
             document.getElementById('healthInfo').value = member.health_info || '';
+            document.getElementById('country').value = member.country || '';
+            document.getElementById('timezone').value = member.timezone || '';
+            document.getElementById('preferredContact').value = member.preferred_contact || '';
+            document.getElementById('notes').value = member.notes || '';
             
             const displayName = getSimpleDisplayName(member);
             document.getElementById('form-title').textContent = `✏️ Edit ${displayName}`;
@@ -1406,6 +1502,7 @@ window.exportToWord = exportToWord;
             updateAnniversaryCalendarView();
             updateAddressesView();
             updateHealthView();
+            updateNotesView();
             updatePhoneListView();
         }
 
@@ -2015,7 +2112,39 @@ window.exportToWord = exportToWord;
             list.innerHTML = html;
         }
 
-        // Update phone list view
+        // Update notes view
+        function updateNotesView() {
+            const list = document.getElementById('notes-list');
+            const membersWithNotes = familyMembers.filter(member => member.notes && member.notes.trim());
+            
+            if (membersWithNotes.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <p style="font-size: 20px;">No notes recorded yet</p>
+                        <p>Add notes to family members to see them here!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            membersWithNotes.forEach((member, index) => {
+                const displayName = getDisplayName(member);
+                
+                html += `
+                    <div style="margin-bottom: ${index < membersWithNotes.length - 1 ? '20px' : '0'};">
+                        <div style="line-height: 1; margin-bottom: 5px;">
+                            <strong>${displayName}</strong>
+                            <button class="small-btn" onclick="editMember('${member.id}')" style="margin-left: 8px;">✏️</button>
+                        </div>
+                        <div style="line-height: 1; font-size: 14px; color: #333;">${member.notes}</div>
+                    </div>
+                `;
+            });
+
+            list.innerHTML = html;
+        }
         function updatePhoneListView() {
             const list = document.getElementById('phone-directory-list');
             
@@ -2406,7 +2535,34 @@ window.exportToWord = exportToWord;
             alert('✅ Health information exported successfully!');
         }
 
-        // Export phone list to Word document
+        // Export notes to Word document
+        function exportNotes() {
+            const membersWithNotes = familyMembers.filter(member => member.notes && member.notes.trim());
+            
+            if (membersWithNotes.length === 0) {
+                alert('No notes to export.');
+                return;
+            }
+
+            let docContent = `${currentDirectoryName} - Notes\n\n`;
+            
+            membersWithNotes.forEach(member => {
+                const displayName = getDisplayName(member);
+                docContent += `${displayName}\n${member.notes}\n\n`;
+            });
+            
+            const blob = new Blob([docContent], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${currentDirectoryName.replace(' Directory', '')}_Notes.doc`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            alert('✅ Notes exported successfully!');
+        }
         function exportPhoneList() {
             const membersWithPhones = familyMembers.filter(member => 
                 member.phone && member.phone.trim()
