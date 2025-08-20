@@ -1562,38 +1562,61 @@
 
         // Helper function to add current partner (handles remarriage by marriage date)
         function addCurrentPartner(person, orderedFamilyList, processedIds) {
+            // Find all people who list this person as their spouse or significant other
+            const peopleWhoClaimThisPerson = familyMembers.filter(member => 
+                member.spouse_id == person.id || member.significant_other_id == person.id
+            );
+            
+            // Find the person this person claims as spouse/SO
             const spouse = findSpouse(person);
             const significantOther = findSignificantOther(person);
             
-            // If person has both a spouse and significant other, prioritize by relationship type and dates
-            if (spouse && significantOther) {
-                // If spouse has anniversary date, use that for ordering
-                if (person.anniversary) {
-                    if (!processedIds.has(spouse.id)) {
-                        orderedFamilyList.push(spouse);
-                        processedIds.add(spouse.id);
-                    }
-                } else {
-                    // No anniversary date, add spouse first by default
-                    if (!processedIds.has(spouse.id)) {
-                        orderedFamilyList.push(spouse);
-                        processedIds.add(spouse.id);
-                    }
-                }
+            // Priority 1: Living person who claims this person as spouse (handles remarriage)
+            const livingSpouseClaimant = peopleWhoClaimThisPerson.find(member => 
+                member.spouse_id == person.id && !member.date_of_death
+            );
+            if (livingSpouseClaimant && !processedIds.has(livingSpouseClaimant.id)) {
+                orderedFamilyList.push(livingSpouseClaimant);
+                processedIds.add(livingSpouseClaimant.id);
                 return;
             }
             
-            // Add spouse if exists
-            if (spouse && !processedIds.has(spouse.id)) {
+            // Priority 2: Person this person claims as living spouse
+            if (spouse && !spouse.date_of_death && !processedIds.has(spouse.id)) {
                 orderedFamilyList.push(spouse);
                 processedIds.add(spouse.id);
                 return;
             }
             
-            // Add significant other if no spouse
-            if (significantOther && !processedIds.has(significantOther.id)) {
+            // Priority 3: Living significant other (either direction)
+            const livingSOClaimant = peopleWhoClaimThisPerson.find(member => 
+                member.significant_other_id == person.id && !member.date_of_death
+            );
+            if (livingSOClaimant && !processedIds.has(livingSOClaimant.id)) {
+                orderedFamilyList.push(livingSOClaimant);
+                processedIds.add(livingSOClaimant.id);
+                return;
+            }
+            
+            if (significantOther && !significantOther.date_of_death && !processedIds.has(significantOther.id)) {
                 orderedFamilyList.push(significantOther);
                 processedIds.add(significantOther.id);
+                return;
+            }
+            
+            // Priority 4: Deceased spouse (either direction)
+            const deceasedSpouseClaimant = peopleWhoClaimThisPerson.find(member => 
+                member.spouse_id == person.id && member.date_of_death
+            );
+            if (deceasedSpouseClaimant && !processedIds.has(deceasedSpouseClaimant.id)) {
+                orderedFamilyList.push(deceasedSpouseClaimant);
+                processedIds.add(deceasedSpouseClaimant.id);
+                return;
+            }
+            
+            if (spouse && spouse.date_of_death && !processedIds.has(spouse.id)) {
+                orderedFamilyList.push(spouse);
+                processedIds.add(spouse.id);
             }
         }
 
