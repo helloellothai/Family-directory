@@ -1,5 +1,4 @@
-window.exportToWord = exportToWord;
-        window.exportAll = exportAll;<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -444,7 +443,7 @@ window.exportToWord = exportToWord;
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label class="optional">💰 Maiden Name (if applicable)</label>
+                                <label class="optional">👰 Maiden Name (if applicable)</label>
                                 <input type="text" id="maidenName">
                             </div>
                             <div class="form-group">
@@ -500,31 +499,16 @@ window.exportToWord = exportToWord;
                                 <small style="color: #666; font-size: 12px;">Separate multiple emails with commas</small>
                             </div>
                             <div class="form-group">
-                                <label class="optional">📞 Preferred Contact Method</label>
-                                <select id="preferredContact">
-                                    <option value="">Select preferred method</option>
-                                    <option value="phone">Phone Call</option>
-                                    <option value="text">Text/SMS</option>
-                                    <option value="email">Email</option>
-                                    <option value="whatsapp">WhatsApp</option>
-                                    <option value="video">Video Call</option>
-                                    <option value="letter">Letter/Mail</option>
-                                </select>
+                                <label class="optional">🌍 Country/Region</label>
+                                <input type="text" id="country" placeholder="United States, Italy, etc.">
                             </div>
                         </div>
 
                         <div class="form-row">
-                            <div class="form-group">
-                                <label class="optional">🌍 Country/Region</label>
-                                <input type="text" id="country" placeholder="United States, Italy, etc.">
-                            </div>
                             <div class="form-group">
                                 <label class="optional">🕐 Time Zone</label>
                                 <input type="text" id="timezone" placeholder="EST, GMT+1, PST, etc.">
                             </div>
-                        </div>
-
-                        <div class="form-row">
                             <div class="form-group">
                                 <label class="optional">📞 Preferred Contact Method</label>
                                 <select id="preferredContact">
@@ -536,6 +520,13 @@ window.exportToWord = exportToWord;
                                     <option value="video">Video Call</option>
                                     <option value="letter">Letter/Mail</option>
                                 </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="optional">📷 Instagram Handle</label>
+                                <input type="text" id="instagram" placeholder="@username">
                             </div>
                             <div class="form-group">
                             </div>
@@ -554,25 +545,6 @@ window.exportToWord = exportToWord;
                         <div class="form-group">
                             <label class="optional">📝 Notes - Additional information for family reference</label>
                             <textarea id="notes"></textarea>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="optional">📷 Instagram Handle</label>
-                                <input type="text" id="instagram" placeholder="@username">
-                            </div>
-                            <div class="form-group">
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="optional">🏠 Address</label>
-                            <textarea id="address"></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="optional">🏥 Health Issues - Anything you think sharing would be useful information for others</label>
-                            <textarea id="healthInfo"></textarea>
                         </div>
 
                         <div style="margin-top: 30px;">
@@ -796,19 +768,6 @@ window.exportToWord = exportToWord;
             await initializeApp();
         });
 
-        function leaveDirectory() {
-            if (confirm('Are you sure you want to leave this family directory?')) {
-                currentDirectoryId = null;
-                currentDirectoryName = '';
-                currentInviteCode = '';
-                familyMembers = [];
-                
-                document.getElementById('main-app').style.display = 'none';
-                document.getElementById('startup-screen').style.display = 'block';
-                hideStartupForms();
-            }
-        }
-
         function showInviteCode() {
             const modal = document.createElement('div');
             modal.style.cssText = `
@@ -942,11 +901,6 @@ window.exportToWord = exportToWord;
                 console.error('Error:', err);
                 familyMembers = [];
             }
-        }
-
-        // Save data to Supabase
-        async function saveData() {
-            // This function is now handled by individual member save/update
         }
 
         // Initialize app - load any saved directory ID
@@ -1689,6 +1643,7 @@ window.exportToWord = exportToWord;
                 }
             }
         }
+
         function isNextPersonSpouse(member, orderedFamily, currentIndex) {
             if (currentIndex + 1 >= orderedFamily.length) return false;
             const nextPerson = orderedFamily[currentIndex + 1];
@@ -1703,6 +1658,7 @@ window.exportToWord = exportToWord;
             const spouse = findSpouse(member);
             return spouse && spouse.id == previousPerson.id;
         }
+
         function getLivingSpouseInfo(member) {
             const spouse = findSpouse(member);
             if (spouse && !spouse.date_of_death) {
@@ -1710,6 +1666,7 @@ window.exportToWord = exportToWord;
             }
             return null;
         }
+
         function guessGender(person) {
             const firstName = person.full_name.trim().split(' ')[0].toLowerCase();
             
@@ -1727,6 +1684,7 @@ window.exportToWord = exportToWord;
             
             return 'unknown';
         }
+
         function hasAnyParents(member) {
             if (member.parent_id) return true; // Old format
             if (member.parent_ids && member.parent_ids.length > 0) return true; // New format
@@ -2145,6 +2103,7 @@ window.exportToWord = exportToWord;
 
             list.innerHTML = html;
         }
+
         function updatePhoneListView() {
             const list = document.getElementById('phone-directory-list');
             
@@ -2563,6 +2522,7 @@ window.exportToWord = exportToWord;
             
             alert('✅ Notes exported successfully!');
         }
+
         function exportPhoneList() {
             const membersWithPhones = familyMembers.filter(member => 
                 member.phone && member.phone.trim()
@@ -2620,6 +2580,8 @@ window.exportToWord = exportToWord;
         window.exportAddresses = exportAddresses;
         window.exportHealthInfo = exportHealthInfo;
         window.exportPhoneList = exportPhoneList;
+        window.exportAll = exportAll;
+        window.exportNotes = exportNotes;
 
         console.log('✅ Testing version loaded successfully');
     </script>
