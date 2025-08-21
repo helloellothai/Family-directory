@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -407,7 +408,7 @@
                 <button class="tab" onclick="showTab('birthday-calendar')">🎂 Birthday Calendar</button>
                 <button class="tab" onclick="showTab('anniversary-calendar')">💍 Anniversary Calendar</button>
                 <button class="tab" onclick="showTab('addresses')">🏠 Addresses</button>
-                <button class="tab" onclick="showTab('health')">🏥 Health Notes</button>
+                <button class="tab" onclick="showTab('health')">🏥 Health Information</button>
                 <button class="tab" onclick="showTab('notes')">📝 Notes</button>
                 <button class="tab" onclick="showTab('phone-list')">📞 Phone List</button>
                 <button class="tab" onclick="exportToWord()">📄 Export Word Doc</button>
@@ -520,7 +521,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label class="optional">🏥 Health Notes - Anything you think sharing would be useful information for others</label>
+                            <label class="optional">🏥 Health Information - Anything you think sharing would be useful information for others</label>
                             <textarea id="healthInfo"></textarea>
                         </div>
 
@@ -546,8 +547,8 @@
 
                 <!-- Health Information Tab -->
                 <div id="health-tab" class="tab-content" style="display: none;">
-                    <h2>🏥 Health Notes</h2>
-                    <button class="big-btn" onclick="exportHealthInfo()" style="margin-bottom: 20px;">📄 Export Health Notes</button>
+                    <h2>🏥 Health Information</h2>
+                    <button class="big-btn" onclick="exportHealthInfo()" style="margin-bottom: 20px;">📄 Export Health Information</button>
                     <br>
                     <div id="health-list"></div>
                 </div>
@@ -1160,7 +1161,7 @@
                 'birthday-calendar': 'Birthday Calendar',
                 'anniversary-calendar': 'Anniversary Calendar',
                 'addresses': 'Addresses',
-                'health': 'Health Notes',
+                'health': 'Health Information',
                 'notes': 'Notes',
                 'phone-list': 'Phone List'
             };
@@ -1512,8 +1513,8 @@
                 orderedFamilyList.push(person);
                 processedIds.add(person.id);
 
-                // Add their partner chain
-                addPartnerChain(person, orderedFamilyList, processedIds);
+                // Add their spouse chain
+                addSpouseChain(person, orderedFamilyList, processedIds);
 
                 // Add all their descendants
                 addDescendants(person.id, orderedFamilyList, processedIds);
@@ -1541,7 +1542,7 @@
                 orderedFamilyList.push(person);
                 processedIds.add(person.id);
 
-                addPartnerChain(person, orderedFamilyList, processedIds);
+                addSpouseChain(person, orderedFamilyList, processedIds);
                 addDescendants(person.id, orderedFamilyList, processedIds);
             });
 
@@ -1554,26 +1555,32 @@
             return orderedFamilyList;
         }
 
-        // Helper function to add partner chain - ONLY CHANGE IS HERE
-        function addPartnerChain(person, orderedFamilyList, processedIds) {
-            // Check if anyone else lists this person as their spouse and add them
-            const someoneWhoClaimsThisPerson = familyMembers.find(member => 
-                member.spouse_id == person.id && !processedIds.has(member.id)
-            );
+        // FIXED SPOUSE CHAIN FUNCTION for remarriage scenarios
+        function addSpouseChain(person, orderedFamilyList, processedIds) {
+            // Build a chain following spouse_id links
+            let current = person;
+            const chainIds = new Set([current.id]);
             
-            if (someoneWhoClaimsThisPerson) {
-                orderedFamilyList.push(someoneWhoClaimsThisPerson);
-                processedIds.add(someoneWhoClaimsThisPerson.id);
-                return; // Only add one partner to keep couples together
+            // Follow the spouse chain forward
+            while (current.spouse_id) {
+                const nextSpouse = familyMembers.find(m => m.id == current.spouse_id);
+                if (!nextSpouse || chainIds.has(nextSpouse.id) || processedIds.has(nextSpouse.id)) {
+                    break;
+                }
+                
+                orderedFamilyList.push(nextSpouse);
+                processedIds.add(nextSpouse.id);
+                chainIds.add(nextSpouse.id);
+                current = nextSpouse;
             }
             
-            // If no one claims this person, add who this person claims
-            const spouse = findSpouse(person);
-            if (spouse && !processedIds.has(spouse.id)) {
-                orderedFamilyList.push(spouse);
-                processedIds.add(spouse.id);
-                return;
-            }
+            // Also check if anyone else points to the original person as spouse
+            familyMembers.forEach(member => {
+                if (member.spouse_id == person.id && !processedIds.has(member.id) && !chainIds.has(member.id)) {
+                    orderedFamilyList.push(member);
+                    processedIds.add(member.id);
+                }
+            });
             
             // Check for significant others
             const someoneWhoClaimsThisPersonAsSO = familyMembers.find(member => 
@@ -1609,7 +1616,7 @@
                     orderedFamilyList.push(child);
                     processedIds.add(child.id);
 
-                    addPartnerChain(child, orderedFamilyList, processedIds);
+                    addSpouseChain(child, orderedFamilyList, processedIds);
                     addDescendants(child.id, orderedFamilyList, processedIds);
                 }
             });
