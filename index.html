@@ -359,7 +359,7 @@
         <!-- Startup Screen -->
         <div id="startup-screen" class="startup-screen">
             <h1 style="color: #2196f3; margin-bottom: 30px;">👨‍👩‍👧‍👦 Family Directory</h1>
-            <p style="color: #666; margin-bottom: 20px;">🔄 <strong>Data is saved permanently</strong> - Your family information is securely stored</p>
+            <p style="color: #666; margin-bottom: 20px;">💾 <strong>Data is saved permanently</strong> - Your family information is securely stored</p>
             
             <div class="startup-option" onclick="showCreateForm()">
                 <h3>🆕 Create New Family Directory</h3>
@@ -397,7 +397,7 @@
                     <button onclick="showInviteCode()" style="background: rgba(0,255,0,0.3);">Share Code</button>
                 </div>
                 <h1>👨‍👩‍👧‍👦 <span id="directory-title">Family Directory</span></h1>
-                <p>🔄 Data is saved permanently</p>
+                <p>💾 Data is saved permanently</p>
                 <p style="font-size: 14px; margin-top: 5px;">Invite Code: <strong id="current-invite-code"></strong></p>
             </div>
 
@@ -473,14 +473,26 @@
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label>🎂 Birthday * (Required)</label>
-                                <input type="text" id="birthday" required style="border-color: #f44336;" 
+                                <label class="optional">🎂 Birthday (Recommended for sorting)</label>
+                                <input type="text" id="birthday" 
                                        placeholder="MM-DD-YYYY (e.g., 03-15-1965)" 
                                        maxlength="10">
                             </div>
                             <div class="form-group">
+                                <label class="optional">📊 Sibling Order (first generation siblings only)</label>
+                                <input type="number" id="birthOrder" placeholder="1 for oldest, 2 for second, etc." min="1" max="99">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
                                 <label class="optional">💍 Anniversary (if married)</label>
                                 <input type="text" id="anniversary" placeholder="MM-DD-YYYY (e.g., 06-12-1990)" 
+                                       maxlength="10">
+                            </div>
+                            <div class="form-group">
+                                <label class="optional">⚰️ Date of Death (if deceased)</label>
+                                <input type="text" id="dateOfDeath" placeholder="MM-DD-YYYY (e.g., 12-25-2020)" 
                                        maxlength="10">
                             </div>
                         </div>
@@ -500,18 +512,8 @@
                                 <small style="color: #666; font-size: 12px;">Separate multiple emails with commas</small>
                             </div>
                             <div class="form-group">
-                                <label class="optional">⚰️ Date of Death (if deceased)</label>
-                                <input type="text" id="dateOfDeath" placeholder="MM-DD-YYYY (e.g., 12-25-2020)" 
-                                       maxlength="10">
-                            </div>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
                                 <label class="optional">📷 Instagram Handle</label>
                                 <input type="text" id="instagram" placeholder="@username">
-                            </div>
-                            <div class="form-group">
                             </div>
                         </div>
 
@@ -859,6 +861,7 @@
                     spouse_id: member.spouse_id,
                     significant_other_id: member.significant_other_id,
                     birthday: member.birthday,
+                    birth_order: member.birth_order,
                     anniversary: member.anniversary,
                     date_of_death: member.date_of_death,
                     phone: member.phone,
@@ -922,31 +925,43 @@
                 value = value.substring(0, 2) + '-' + value.substring(2);
             }
             if (value.length >= 5) {
-                value = value.substring(0, 5) + '-' + value.substring(5, 9);
+                // Only add year dash if there are more digits
+                if (value.length > 5) {
+                    value = value.substring(0, 5) + '-' + value.substring(5, 9);
+                }
             }
             
             input.value = value;
         }
 
-        // Convert MM-DD-YYYY to YYYY-MM-DD for database
+        // Convert MM-DD-YYYY or MM-DD to YYYY-MM-DD for database
         function convertDateForDB(dateString) {
             if (!dateString || !dateString.includes('-')) return dateString;
             
             const parts = dateString.split('-');
             if (parts.length === 3) {
+                // Full date: MM-DD-YYYY
                 const [month, day, year] = parts;
                 return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            } else if (parts.length === 2) {
+                // Month and day only: MM-DD, use year 1900 as placeholder
+                const [month, day] = parts;
+                return `1900-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
             }
             return dateString;
         }
 
-        // Convert YYYY-MM-DD to MM-DD-YYYY for display
+        // Convert YYYY-MM-DD to MM-DD-YYYY or MM-DD for display
         function convertDateForDisplay(dateString) {
             if (!dateString || !dateString.includes('-')) return dateString;
             
             const parts = dateString.split('-');
             if (parts.length === 3 && parts[0].length === 4) {
                 const [year, month, day] = parts;
+                // If year is 1900 (our placeholder), only show month-day
+                if (year === '1900') {
+                    return `${month}-${day}`;
+                }
                 return `${month}-${day}-${year}`;
             }
             return dateString;
@@ -959,6 +974,14 @@
             const year = parseInt(parts[0]);
             const month = parseInt(parts[1]) - 1;
             const day = parseInt(parts[2]);
+            
+            // If year is 1900 (our placeholder), only show month/day
+            if (year === 1900) {
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                                  'July', 'August', 'September', 'October', 'November', 'December'];
+                return `${monthNames[month]} ${day}`;
+            }
+            
             const date = new Date(year, month, day);
             return date.toLocaleDateString();
         }
@@ -1182,6 +1205,7 @@
             document.getElementById('spouseId').value = '';
             document.getElementById('significantOtherId').value = '';
             document.getElementById('birthday').value = '';
+            document.getElementById('birthOrder').value = '';
             document.getElementById('anniversary').value = '';
             document.getElementById('dateOfDeath').value = '';
             document.getElementById('phone').value = '';
@@ -1206,25 +1230,28 @@
             const fullName = document.getElementById('fullName').value.trim();
             const birthdayInput = document.getElementById('birthday').value.trim();
 
-            if (!fullName || !birthdayInput) {
-                alert('Please fill in:\n• Full Name\n• Birthday\n\nThese are required fields.');
+            if (!fullName) {
+                alert('Please fill in Full Name (Birthday optional but recommended for sorting)');
                 isSubmitting = false;
                 return;
             }
 
-            // Validate date format
-            const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
-            if (!dateRegex.test(birthdayInput)) {
-                alert('Please enter birthday in MM-DD-YYYY format (e.g., 03-15-1965)');
-                isSubmitting = false;
-                return;
+            // Validate date format if birthday is provided
+            if (birthdayInput) {
+                const fullDateRegex = /^\d{2}-\d{2}-\d{4}$/;
+                const monthDayRegex = /^\d{2}-\d{2}$/;
+                if (!fullDateRegex.test(birthdayInput) && !monthDayRegex.test(birthdayInput)) {
+                    alert('Please enter birthday as MM-DD-YYYY (e.g., 03-15-1965) or MM-DD (e.g., 03-15) if year unknown');
+                    isSubmitting = false;
+                    return;
+                }
             }
 
             const anniversary = document.getElementById('anniversary').value.trim();
             const dateOfDeath = document.getElementById('dateOfDeath').value.trim();
             
             // Convert dates to database format (YYYY-MM-DD)
-            const birthday = convertDateForDB(birthdayInput);
+            const birthday = birthdayInput ? convertDateForDB(birthdayInput) : null;
             const anniversaryDB = anniversary ? convertDateForDB(anniversary) : null;
             const dateOfDeathDB = dateOfDeath ? convertDateForDB(dateOfDeath) : null;
 
@@ -1245,6 +1272,7 @@
                 spouse_id: document.getElementById('spouseId').value || null,
                 significant_other_id: document.getElementById('significantOtherId').value || null,
                 birthday: birthday,
+                birth_order: document.getElementById('birthOrder').value ? parseInt(document.getElementById('birthOrder').value) : null,
                 anniversary: anniversaryDB,
                 date_of_death: dateOfDeathDB,
                 phone: document.getElementById('phone').value.trim() || null,
@@ -1404,6 +1432,7 @@
             document.getElementById('spouseId').value = member.spouse_id || '';
             document.getElementById('significantOtherId').value = member.significant_other_id || '';
             document.getElementById('birthday').value = convertDateForDisplay(member.birthday) || '';
+            document.getElementById('birthOrder').value = member.birth_order || '';
             document.getElementById('anniversary').value = convertDateForDisplay(member.anniversary) || '';
             document.getElementById('dateOfDeath').value = convertDateForDisplay(member.date_of_death) || '';
             document.getElementById('phone').value = member.phone || '';
@@ -1448,6 +1477,10 @@
         // Calculate age
         function calculateAge(birthday, dateOfDeath = null) {
             if (!birthday) return 'Unknown';
+            
+            // Check if birthday has year 1900 (meaning no year provided)
+            if (birthday.startsWith('1900-')) return 'Age unknown';
+            
             const today = new Date();
             const birthDate = new Date(birthday);
             let age = today.getFullYear() - birthDate.getFullYear();
@@ -1497,8 +1530,16 @@
                 return hasDirectoryName && hasNoParents;
             });
 
-            // Sort directory family by age (oldest first)
+            // Sort directory family by birth_order first, then age (oldest first)
             directoryTopLevel.sort((a, b) => {
+                // First check birth_order if both have it
+                if (a.birth_order && b.birth_order) {
+                    return a.birth_order - b.birth_order;
+                }
+                // If one has birth_order and other doesn't, birth_order comes first
+                if (a.birth_order && !b.birth_order) return -1;
+                if (!a.birth_order && b.birth_order) return 1;
+                // Then sort by birthday
                 if (!a.birthday && !b.birthday) return 0;
                 if (!a.birthday) return 1;
                 if (!b.birthday) return -1;
@@ -2208,7 +2249,7 @@ function addDescendants(parentId, orderedFamilyList, processedIds) {
         window.exportAll = exportAll;
         window.exportNotes = exportNotes;
 
-        console.log('✅ Full version loaded successfully - with remarriage fix');
+        console.log('✅ Full version loaded successfully - with remarriage fix and optional birthdays');
     </script>
 </body>
 </html>
