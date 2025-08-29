@@ -408,9 +408,10 @@
                 <button class="tab" onclick="showTab('birthday-calendar')">🎂 Birthday Calendar</button>
                 <button class="tab" onclick="showTab('anniversary-calendar')">💍 Anniversary Calendar</button>
                 <button class="tab" onclick="showTab('addresses')">🏠 Addresses</button>
-                <button class="tab" onclick="showTab('health')">🏥 Health Notes</button>
+                <button class="tab" onclick="showTab('health')">🥼 Health Notes</button>
                 <button class="tab" onclick="showTab('notes')">📝 Notes</button>
                 <button class="tab" onclick="showTab('phone-list')">📞 Phone List</button>
+                <button class="tab" onclick="showTab('email-list')">✉️ Email Directory</button>
                 <button class="tab" onclick="exportToWord()">📄 Export Word Doc</button>
             </div>
 
@@ -443,7 +444,7 @@
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label class="optional">👰 Maiden Name (if applicable)</label>
+                                <label class="optional">💰 Maiden Name (if applicable)</label>
                                 <input type="text" id="maidenName">
                             </div>
                             <div class="form-group">
@@ -523,7 +524,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label class="optional">🏥 Health Notes - Anything you think sharing would be useful information for others</label>
+                            <label class="optional">🥼 Health Notes - Anything you think sharing would be useful information for others</label>
                             <textarea id="healthInfo"></textarea>
                         </div>
 
@@ -549,7 +550,7 @@
 
                 <!-- Health Information Tab -->
                 <div id="health-tab" class="tab-content" style="display: none;">
-                    <h2>🏥 Health Notes</h2>
+                    <h2>🥼 Health Notes</h2>
                     <button class="big-btn" onclick="exportHealthInfo()" style="margin-bottom: 20px;">📄 Export Health Notes</button>
                     <br>
                     <div id="health-list"></div>
@@ -593,6 +594,14 @@
                     <p style="color: #666; margin-bottom: 20px;">All family members alphabetically by first name with phone numbers</p>
                     <button class="big-btn" onclick="exportPhoneList()" style="margin-bottom: 20px;">📄 Export Phone Directory</button>
                     <div class="phone-list" id="phone-directory-list"></div>
+                </div>
+
+                <!-- Email List Tab -->
+                <div id="email-list-tab" class="tab-content" style="display: none;">
+                    <h2>✉️ Email Directory</h2>
+                    <p style="color: #666; margin-bottom: 20px;">All family members alphabetically by first name with email addresses</p>
+                    <button class="big-btn" onclick="exportEmailList()" style="margin-bottom: 20px;">📄 Export Email Directory</button>
+                    <div class="phone-list" id="email-directory-list"></div>
                 </div>
             </div>
         </div>
@@ -1186,7 +1195,8 @@
                 'addresses': 'Addresses',
                 'health': 'Health Notes',
                 'notes': 'Notes',
-                'phone-list': 'Phone List'
+                'phone-list': 'Phone List',
+                'email-list': 'Email Directory'
             };
             return tabNames[tabName] || tabName;
         }
@@ -1514,6 +1524,7 @@
             updateHealthView();
             updateNotesView();
             updatePhoneListView();
+            updateEmailListView();
         }
 
         // Build family tree
@@ -1596,85 +1607,85 @@
             return orderedFamilyList;
         }
 
-       // Helper function to add partner chain - FIXED FOR REMARRIAGE AND SIGNIFICANT OTHERS
-function addPartnerChain(person, orderedFamilyList, processedIds) {
-    // Build a chain following spouse_id and significant_other_id links
-    let current = person;
-    const chainIds = new Set([current.id]);
-    
-    // First, follow the spouse chain forward
-    while (current.spouse_id) {
-        const nextSpouse = familyMembers.find(m => m.id == current.spouse_id);
-        if (!nextSpouse || chainIds.has(nextSpouse.id) || processedIds.has(nextSpouse.id)) {
-            break;
+        // Helper function to add partner chain - FIXED FOR REMARRIAGE AND SIGNIFICANT OTHERS
+        function addPartnerChain(person, orderedFamilyList, processedIds) {
+            // Build a chain following spouse_id and significant_other_id links
+            let current = person;
+            const chainIds = new Set([current.id]);
+            
+            // First, follow the spouse chain forward
+            while (current.spouse_id) {
+                const nextSpouse = familyMembers.find(m => m.id == current.spouse_id);
+                if (!nextSpouse || chainIds.has(nextSpouse.id) || processedIds.has(nextSpouse.id)) {
+                    break;
+                }
+                
+                orderedFamilyList.push(nextSpouse);
+                processedIds.add(nextSpouse.id);
+                chainIds.add(nextSpouse.id);
+                current = nextSpouse;
+            }
+            
+            // Also check if anyone else points to the original person as spouse
+            familyMembers.forEach(member => {
+                if (member.spouse_id == person.id && !processedIds.has(member.id) && !chainIds.has(member.id)) {
+                    orderedFamilyList.push(member);
+                    processedIds.add(member.id);
+                    chainIds.add(member.id);
+                }
+            });
+            
+            // Now handle significant others for the original person
+            if (person.significant_other_id) {
+                const significantOther = familyMembers.find(m => m.id == person.significant_other_id);
+                if (significantOther && !processedIds.has(significantOther.id)) {
+                    orderedFamilyList.push(significantOther);
+                    processedIds.add(significantOther.id);
+                }
+            }
+            
+            // Check if anyone claims this person as their significant other
+            const someoneWhoClaimsThisPersonAsSO = familyMembers.find(member => 
+                member.significant_other_id == person.id && !processedIds.has(member.id)
+            );
+            
+            if (someoneWhoClaimsThisPersonAsSO) {
+                orderedFamilyList.push(someoneWhoClaimsThisPersonAsSO);
+                processedIds.add(someoneWhoClaimsThisPersonAsSO.id);
+            }
         }
-        
-        orderedFamilyList.push(nextSpouse);
-        processedIds.add(nextSpouse.id);
-        chainIds.add(nextSpouse.id);
-        current = nextSpouse;
-    }
-    
-    // Also check if anyone else points to the original person as spouse
-    familyMembers.forEach(member => {
-        if (member.spouse_id == person.id && !processedIds.has(member.id) && !chainIds.has(member.id)) {
-            orderedFamilyList.push(member);
-            processedIds.add(member.id);
-            chainIds.add(member.id);
-        }
-    });
-    
-    // Now handle significant others for the original person
-    if (person.significant_other_id) {
-        const significantOther = familyMembers.find(m => m.id == person.significant_other_id);
-        if (significantOther && !processedIds.has(significantOther.id)) {
-            orderedFamilyList.push(significantOther);
-            processedIds.add(significantOther.id);
-        }
-    }
-    
-    // Check if anyone claims this person as their significant other
-    const someoneWhoClaimsThisPersonAsSO = familyMembers.find(member => 
-        member.significant_other_id == person.id && !processedIds.has(member.id)
-    );
-    
-    if (someoneWhoClaimsThisPersonAsSO) {
-        orderedFamilyList.push(someoneWhoClaimsThisPersonAsSO);
-        processedIds.add(someoneWhoClaimsThisPersonAsSO.id);
-    }
-}
 
         // Helper function to add descendants
-function addDescendants(parentId, orderedFamilyList, processedIds) {
-    // Get children of this parent
-    const children = familyMembers.filter(m => isChildOf(m, parentId));
-    
-    // Also get children of this parent's current spouse (for blended families)
-    const currentParent = familyMembers.find(m => m.id === parentId);
-    if (currentParent && currentParent.spouse_id) {
-        const spouseChildren = familyMembers.filter(m => 
-            isChildOf(m, currentParent.spouse_id) && !children.includes(m)
-        );
-        children.push(...spouseChildren);
-    }
-    
-    children.sort((a, b) => {
-        if (!a.birthday && !b.birthday) return 0;
-        if (!a.birthday) return 1;
-        if (!b.birthday) return -1;
-        return new Date(a.birthday) - new Date(b.birthday);
-    });
+        function addDescendants(parentId, orderedFamilyList, processedIds) {
+            // Get children of this parent
+            const children = familyMembers.filter(m => isChildOf(m, parentId));
+            
+            // Also get children of this parent's current spouse (for blended families)
+            const currentParent = familyMembers.find(m => m.id === parentId);
+            if (currentParent && currentParent.spouse_id) {
+                const spouseChildren = familyMembers.filter(m => 
+                    isChildOf(m, currentParent.spouse_id) && !children.includes(m)
+                );
+                children.push(...spouseChildren);
+            }
+            
+            children.sort((a, b) => {
+                if (!a.birthday && !b.birthday) return 0;
+                if (!a.birthday) return 1;
+                if (!b.birthday) return -1;
+                return new Date(a.birthday) - new Date(b.birthday);
+            });
 
-    children.forEach(child => {
-        if (!processedIds.has(child.id)) {
-            orderedFamilyList.push(child);
-            processedIds.add(child.id);
+            children.forEach(child => {
+                if (!processedIds.has(child.id)) {
+                    orderedFamilyList.push(child);
+                    processedIds.add(child.id);
 
-            addPartnerChain(child, orderedFamilyList, processedIds);
-            addDescendants(child.id, orderedFamilyList, processedIds);
+                    addPartnerChain(child, orderedFamilyList, processedIds);
+                    addDescendants(child.id, orderedFamilyList, processedIds);
+                }
+            });
         }
-    });
-}
 
         function hasAnyParents(member) {
             if (member.parent_id) return true; 
@@ -1768,7 +1779,7 @@ function addDescendants(parentId, orderedFamilyList, processedIds) {
             if (membersWithHealth.length === 0) {
                 list.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-icon">🏥</div>
+                        <div class="empty-icon">🥼</div>
                         <p style="font-size: 20px;">No health information recorded yet</p>
                         <p>Add health information to family members to see it here!</p>
                     </div>
@@ -2118,6 +2129,48 @@ function addDescendants(parentId, orderedFamilyList, processedIds) {
             list.innerHTML = html;
         }
 
+        function updateEmailListView() {
+            const list = document.getElementById('email-directory-list');
+            
+            const membersWithEmails = familyMembers.filter(member => 
+                member.email && member.email.trim()
+            );
+            
+            if (membersWithEmails.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">✉️</div>
+                        <p style="font-size: 20px;">No email addresses recorded yet</p>
+                        <p>Add email addresses to family members to see the directory!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            membersWithEmails.sort((a, b) => {
+                const nameA = getSimpleDisplayName(a).toLowerCase();
+                const nameB = getSimpleDisplayName(b).toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+
+            let html = '';
+            membersWithEmails.forEach(member => {
+                const displayName = getSimpleDisplayName(member);
+                const emails = member.email.includes(',') ? 
+                    member.email.split(',').map(e => e.trim()).join(', ') : 
+                    member.email;
+                
+                html += `
+                    <div class="phone-item">
+                        <span class="phone-name">${displayName}</span>
+                        <span style="word-break: break-word;">${emails}</span>
+                    </div>
+                `;
+            });
+
+            list.innerHTML = html;
+        }
+
         // Auto-format dates and phone as user types
         document.addEventListener('DOMContentLoaded', function() {
             const phoneInput = document.getElementById('phone');
@@ -2221,6 +2274,10 @@ function addDescendants(parentId, orderedFamilyList, processedIds) {
             alert('Phone list export feature coming soon!');
         }
 
+        function exportEmailList() {
+            alert('Email list export feature coming soon!');
+        }
+
         function exportNotes() {
             alert('Notes export feature coming soon!');
         }
@@ -2246,10 +2303,11 @@ function addDescendants(parentId, orderedFamilyList, processedIds) {
         window.exportAddresses = exportAddresses;
         window.exportHealthInfo = exportHealthInfo;
         window.exportPhoneList = exportPhoneList;
+        window.exportEmailList = exportEmailList;
         window.exportAll = exportAll;
         window.exportNotes = exportNotes;
 
-        console.log('✅ Full version loaded successfully - with remarriage fix and optional birthdays');
+        console.log('✅ Full version loaded successfully - with email directory');
     </script>
 </body>
 </html>
